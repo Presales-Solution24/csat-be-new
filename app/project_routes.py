@@ -100,3 +100,48 @@ def get_project_satisfaction(id):
             for t in tasks
         ]
     })
+    
+@project_bp.route('/project-satisfaction', methods=['GET'])
+def list_project_satisfaction():
+    projects = Project.query.order_by(Project.id.desc()).all()
+    result = []
+    for project in projects:
+        tasks = Task.query.filter_by(project_id=project.id).all()
+        result.append({
+            "id": project.id,
+            "project_name": project.project_title,
+            "customer_name": project.nama_company or project.nama_pribadi,
+            "approve": project.approved,
+            "score": project.rating,
+            "tanggal_approve": str(project.tanggal_approved) if project.tanggal_approved else None,
+            "tasks": [
+                {
+                    "id": task.id,
+                    "task_name": task.task,
+                    "expected_result": task.expected_result,
+                    "actual_result": task.actual_result,
+                    "status": "Done" if task.actual_result else "Pending"
+                } for task in tasks
+            ]
+        })
+    return jsonify(result)
+
+@project_bp.route('/project-satisfaction/<int:id>', methods=['DELETE'])
+def delete_project_satisfaction(id):
+    try:
+        project = Project.query.get(id)
+        if not project:
+            return jsonify({"error": "Project not found"}), 404
+
+        # Hapus semua task terkait
+        Task.query.filter_by(project_id=id).delete()
+
+        # Hapus project
+        db.session.delete(project)
+        db.session.commit()
+
+        return jsonify({"message": "Project and related tasks deleted successfully."}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
