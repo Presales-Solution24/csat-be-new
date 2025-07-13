@@ -1,0 +1,21 @@
+from marshmallow import Schema, fields
+
+class ProjectSatisfactionSchema(Schema):
+    id = fields.Int(dump_only=True)
+    nama_company = fields.Str()
+    nama_pribadi = fields.Str()
+    email = fields.Str()
+    no_hp = fields.Str()
+    jabatan = fields.Str()
+    project_title = fields.Str()
+    nama_presales = fields.Str()
+    tanggal_projek = fields.Date()
+    tanggal_approved = fields.Date()
+    approved = fields.Str()
+    rating = fields.Str()
+    tipe_produk = fields.Str()
+    kategori_produk = fields.Str()
+    task = fields.Str()
+    expected_result = fields.Str()
+    actual_result = fields.Str()
+    created_at = fields.DateTime(dump_only=True)
