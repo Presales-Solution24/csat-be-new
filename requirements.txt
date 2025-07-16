@@ -10,3 +10,4 @@ Werkzeug
 pymysql
 flask_mail
 marshmallow
+passlib

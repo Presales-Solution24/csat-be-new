@@ -1,4 +1,6 @@
-from flask import Blueprint, request, jsonify
+import jwt
+import datetime
+from flask import Blueprint, request, jsonify, current_app
 from . import db
 from .models import User
 from passlib.hash import sha256_crypt
@@ -35,4 +37,17 @@ def login():
     if not user or not sha256_crypt.verify(password, user.password):
         return jsonify({"message": "Username atau password salah."}), 401
 
-    return jsonify({"message": "Login berhasil.", "username": user.username}), 200
+    # Buat JWT token dengan expiration 1 bulan
+    token_payload = {
+        "user_id": user.id,
+        "username": user.username,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=30)  # Expired dalam 30 hari
+    }
+
+    token = jwt.encode(token_payload, current_app.config["SECRET_KEY"], algorithm="HS256")
+
+    return jsonify({
+        "message": "Login berhasil.",
+        "username": user.username,
+        "token": token
+    }), 200

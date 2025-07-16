@@ -24,6 +24,7 @@ class Project(db.Model):
     rating = db.Column(db.String(10))
     tipe_produk = db.Column(db.String(100))
     kategori_produk = db.Column(db.String(100))
+    scoring_token = db.Column(db.String(64), unique=True, nullable=True)
     tasks = db.relationship("Task", backref="project", cascade="all, delete-orphan")
 
 class Task(db.Model):
