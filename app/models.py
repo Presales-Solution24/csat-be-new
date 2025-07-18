@@ -33,3 +33,8 @@ class Task(db.Model):
     task = db.Column(db.String(255))
     expected_result = db.Column(db.String(255))
     actual_result = db.Column(db.String(255))
+
+class ProductType(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tipe_produk = db.Column(db.String(100), nullable=False)
+    kategori_produk = db.Column(db.String(100), nullable=False)

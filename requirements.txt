@@ -11,3 +11,6 @@ pymysql
 flask_mail
 marshmallow
 passlib
+pandas 
+xlsxwriter
+openpyxl
