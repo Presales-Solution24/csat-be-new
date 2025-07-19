@@ -3,6 +3,7 @@ from app.models import db, Project, Task, ProductType
 from datetime import datetime
 import secrets
 import io
+import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -372,3 +373,100 @@ def download_project_template():
         download_name="project_satisfaction_template.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+    
+@project_bp.route("/project-satisfaction/upload/preview", methods=["POST"])
+def preview_excel():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files['file']
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    try:
+        df = pd.read_excel(file)
+        df.columns = df.columns.str.strip()
+
+        required_columns = [
+            "Tanggal Project", "Nama Company", "Nama Pribadi", "Email",
+            "Judul Project", "Nama Presales", "Tipe Produk", "Kategori Produk",
+            "Task 1", "Expected 1", "Actual 1",
+            "Task 2", "Expected 2", "Actual 2",
+            "Task 3", "Expected 3", "Actual 3",
+            "Tanggal Approve", "Approved", "Rating"
+        ]
+
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return jsonify({"error": f"Missing columns: {', '.join(missing_columns)}"}), 400
+
+        # Ambil semua pasangan tipe-kategori dari DB
+        type_map = {
+            pt.tipe_produk.strip(): pt.kategori_produk.strip()
+            for pt in db.session.query(ProductType).all()
+        }
+
+        # Validasi dan tambahkan status per baris
+        preview_data = []
+        for _, row in df.iterrows():
+            row_dict = row.fillna("").to_dict()
+            tipe = row_dict.get("Tipe Produk", "").strip()
+            kategori = row_dict.get("Kategori Produk", "").strip()
+            expected_kategori = type_map.get(tipe)
+
+            if expected_kategori and kategori == expected_kategori:
+                row_dict["status"] = "valid"
+            else:
+                row_dict["status"] = "invalid"
+
+            preview_data.append(row_dict)
+
+        return jsonify({"preview": preview_data}), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
+
+@project_bp.route("/project-satisfaction/upload/save", methods=["POST"])
+def save_excel():
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    try:
+        for item in data:
+            project = Project(
+                tanggal_projek=item.get("Tanggal Project"),
+                nama_company=item.get("Nama Company"),
+                nama_pribadi=item.get("Nama Pribadi"),
+                email=item.get("Email"),
+                project_title=item.get("Judul Project"),
+                nama_presales=item.get("Nama Presales"),
+                tipe_produk=item.get("Tipe Produk"),
+                kategori_produk=item.get("Kategori Produk"),
+                tanggal_approved=item.get("Tanggal Approve"),
+                approved = item.get("Approved") == "Yes",
+                rating=item.get("Rating"),
+                scoring_token=secrets.token_urlsafe(32),
+            )
+            db.session.add(project)
+            db.session.flush()
+
+            # Tambah task jika ada
+            for i in range(1, 4):
+                task = item.get(f"Task {i}")
+                expected = item.get(f"Expected {i}")
+                actual = item.get(f"Actual {i}")
+                if task or expected or actual:
+                    db.session.add(Task(
+                        project_id=project.id,
+                        task=task,
+                        expected_result=expected,
+                        actual_result=actual
+                    ))
+
+        db.session.commit()
+        return jsonify({"message": "Data berhasil disimpan"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Gagal menyimpan data: {str(e)}"}), 500
